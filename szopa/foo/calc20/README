@@ -1,0 +1,102 @@
+######################################################################
+CALC20 - a stylish, programmable calculator!
+
+Your worst christmas gift comes with:
+  *A CALC20 calculator with NIGGER v0.3 kernel on-board!
+  *Dedicated compilator.
+  *Example code written with hatred in mind.
+
+Batteries are NOT INCLUDED! You need these dependencies:
+  -Python3.x
+  -A computer (may or may not be working. depends on your preferences)
+  -Uhh and it won't work on on MS-DOS, but u can try.
+
+
+How to setup your funny, little toy:
+  +`chmod +x ./c20compile` - yo need'a run it with Python, but that's
+                             faster.
+  +`./c20compile <name-o-ex-prg>` - compile the example program
+                                    included within. Idk I forgot. Too
+				    much work to ctrl d ls fg whatever
+  +Now you see there has been created a new, a bit strange file you
+   are unsure about. Don't worry, .BIN is just for aesthetics.
+   A simple text file with some array with some random numbers in it.
+  +Now you can `chmod +x calc20` or python3 calc20 same as before
+   except I didn't tell you last time.
+
+What the hell's wrong with that example program:
+  1. Use numpad, best immersion HD make sure yo 3D drivers are updated
+  2. Done with updating drivers? Well, then.. Good job!
+  3. So you've started the program, seen the intro (nigger) and now
+     yo seeing an empty display.
+  4. Press a digit from 0-9. Now you your digidig on the screen. Sorry
+     you can have only one of those.
+  5. Now press either + or - for subtraction and double precision
+     fractal exponentation, respectively.
+  7. I mean, addition and subtraction :P.
+  8. And now's the time for your second chance - press another single
+     digit and wait.
+  9. Now you see the result! Yay! Press Return, to play again.
+  10. ???
+  11. Profit.
+
+
+Now the less fun part... I mean, it's more fun, but only for a little
+while, and then it's not so much fun, but it also depends on one's
+likelings and other psychological stuff, that I don't care about.
+
+== Trying to program this shit: ==
+It's simmilar to assembler, even the name is a bit fammiliar:
+"orgasm c20 language".
+General rules: separate argument's with space, commas, newlines,
+they are all translated into single spaces at the end and the
+white space is removed.
+Colons (;) (I think that's the name) are completely ignored, removed.
+Use them how you want, even inside a command.
+
+Please look at the compilers code for a list of commands and also
+look at the c20 code.
+
+Examples:
+
+`print 123`
+> displays 123
+
+`print 1
+ print 2`
+> displays 12
+
+`mov #100, 69
+ print #100`
+> displays 69
+
+`mov #100, #102`
+> RAM[100] = RAM[102]
+
+`mov 1 2`
+> Compilation error.
+
+```
+some_label:
+key #1000
+
+cmp #1000, 20
+je some_label
+```
+> if yo press Return it repeats.
+
+```
+kurva
+```
+> Compilation error - no such code.
+
+```
+je chuj
+```
+> Compiler crash.
+
+```
+m;;ov;;
+#;100      1;;
+```
+> Same as mov 100, 1

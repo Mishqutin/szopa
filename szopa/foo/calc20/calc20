@@ -1,0 +1,458 @@
+#!/usr/bin/python3
+# A stylish, programmable calculator.
+import time
+import os
+import sys
+import tty
+import _thread as thread
+
+# DEL MEANS BACKSPACE!! WHAAAAAAAAAA!!!!!!!!
+
+# - Data. -
+# Binds
+stdin  = sys.stdin
+stdout = sys.stdout
+
+
+# GRAPHICS -> THE CASE OF OUR MACHINE
+
+# Some box building codes.
+l1 = "|  "+"\u250c"+"\u2500"*25+"\u2510"+"     |"
+l2 = "|  "+"\u2502"+"                         "+"\u2502"+"     |"
+l3 = "|  "+"\u2514"+"\u2500"*25+"\u2518"+"     |"
+
+bodyString = """\
+------------------------------------
+{}
+{}
+{}
+|                        nigg20\u00a9   |
+|                                  |
+| [q]             |del| |C|        |
+|                                  |
+|      |7| |8| |9|  |/| |*| |-|    |
+|                                  |
+|      |4| |5| |6|          |+|    |
+|                                  |
+|      |1| |2| |3|          |=|    |
+|                           |=|    |
+|          |0| |,|                 |
+|                                  |
+|                               MQ |
+------------------------------------
+""".format(l1, l2, l3)
+
+# Variables.
+
+# Everything from here is flushed onto display.
+screen = []
+
+# List of useable keys. Others are disabled to limit the fun.
+buttons = list("1234567890/*-+,c") # +127, 13
+
+# Corresponding values of each key when reading them.
+# You know if u write 'key #10' and press [*] then RAM[10] == 12.
+buttons_binds = {
+    "1":1, "2":2, "3":3, "4":4, "5":5, "6":6, "7":7, "8":8, "9":9, "0":0,
+    "+":10, "-":11, "*":12, "/":13, ",":14,
+    "\n":20, "d":21, "c":22
+}
+
+# Cursor directions for cMove(d, n) function.
+curDirs = {
+    "u": "A",
+    "d": "B",
+    "r": "C",
+    "l": "D"
+}
+
+# Running!
+running = True
+
+# Equal to last pressed valid key, the one from 'buttons'.
+KEY = 0
+
+# RAM and ROM, ROM unused and RAM executed.
+ROM = []
+RAM = []
+
+# Flags!
+FLAGS = {
+    # The result of 'cmp a b'.
+    "CMP": 0
+}
+
+# Instruction pointer variable.
+ip = 0
+
+
+## PROCESSOR OPCODES
+# self-explanatory.
+def codeStop():
+    global running
+    running = False
+
+def codePrint():
+    global ip, screen
+    ip += 1
+    c = RAM[ip]
+    l = list(str(c))
+    screen += l
+    flushScreen()
+
+def codeClear():
+    global screen
+    screen = []
+    clearScreen()
+
+def codeSleep():
+    global ip
+    ip += 1
+    t = RAM[ip]
+    # Sleep miliseconds!
+    time.sleep(t/1000)
+
+def codeMovRamInt():
+    global RAM, ip
+    ip += 1
+    dest = RAM[ip]
+    ip += 1
+    val = RAM[ip]
+    RAM[dest] = val
+
+def codeMovRamRam():
+    global RAM, ip
+    ip += 1
+    dest = RAM[ip]
+    ip += 1
+    targ = RAM[ip]
+
+    RAM[dest] = RAM[targ]
+
+def codePrintRam():
+    global ip, screen
+    ip += 1
+    p = RAM[ip]
+    
+    screen += list(str(RAM[p]))
+    flushScreen()
+
+def codeAddRamInt():
+    global ip, RAM
+    ip += 1
+    a = RAM[ip]
+    ip += 1
+    n = RAM[ip]
+    RAM[a] += n
+
+def codeAddRamRam():
+    global ip, RAM
+    ip += 1
+    a = RAM[ip]
+    ip += 1
+    b = RAM[ip]
+    RAM[a] += RAM[b]
+
+def codeSubRamInt():
+    global ip, RAM
+    ip += 1
+    a = RAM[ip]
+    ip += 1
+    n = RAM[ip]
+    RAM[a] -= n
+
+def codeSubRamRam():
+    global ip, RAM
+    ip += 1
+    a = RAM[ip]
+    ip += 1
+    b = RAM[ip]
+    RAM[a] -= RAM[b]
+
+def codeMulRamInt():
+    global ip, RAM
+    ip += 1
+    a = RAM[ip]
+    ip += 1
+    n = RAM[ip]
+    RAM[a] *= n
+
+def codeMulRamRam():
+    global ip, RAM
+    ip += 1
+    a = RAM[ip]
+    ip += 1
+    b = RAM[ip]
+    RAM[a] *= RAM[b]
+
+def codeDivRamInt():
+    global ip, RAM
+    ip += 1
+    a = RAM[ip]
+    ip += 1
+    n = RAM[ip]
+    RAM[a] /= n
+
+def codeDivRamRam():
+    global ip, RAM
+    ip += 1
+    a = RAM[ip]
+    ip += 1
+    b = RAM[ip]
+    RAM[a] /= RAM[b]
+
+def codeJump():
+    global ip
+    ip += 1
+    ip = RAM[ip]-1
+
+def codeCmpRamInt():
+    global ip, FLAGS
+    ip += 1
+    ap = RAM[ip]
+    ip += 1
+    b = RAM[ip]
+    a = RAM[ap]
+    FLAGS["CMP"] =  (a > b) - (a < b)
+
+def codeCmpRamRam():
+    global ip, FLAGS
+    ip += 1
+    ap = RAM[ip]
+    ip += 1
+    bp = RAM[ip]
+    a = RAM[ap]
+    b = RAM[bp]
+    FLAGS["CMP"] =  (a > b) - (a < b)
+
+def codeJumpEqual():
+    global ip
+    ip += 1
+    if FLAGS["CMP"] == 0:
+        ip = RAM[ip]-1
+
+def codeJumpNotEqual():
+    global ip
+    ip += 1
+    if FLAGS["CMP"] != 0:
+        ip = RAM[ip]-1
+
+def codeAwaitKey():
+    global ip, KEY
+    ip += 1
+    p = RAM[ip]
+
+    KEY = 0
+    while KEY == 0 and running:
+        time.sleep(0.01)
+
+    if not running: return
+        
+    RAM[p] = buttons_binds[KEY]
+
+#
+# OPCODES' CODES (meh)
+codes = {
+    0:  codeStop,
+    1:  codePrint,
+    2:  codeClear,
+    3:  codeSleep,
+    4:  codeMovRamInt,
+    5:  codeMovRamRam,
+    6:  codePrintRam,
+    
+    7:  codeAddRamInt,
+    8:  codeAddRamRam,
+    9:  codeSubRamInt,
+    10: codeSubRamRam,
+    11: codeMulRamInt,
+    12: codeMulRamRam,
+    13: codeDivRamInt,
+    14: codeDivRamRam,
+
+    15: codeJump,
+
+    16: codeCmpRamInt,
+    17: codeCmpRamRam,
+    18: codeJumpEqual,
+    19: codeJumpNotEqual,
+    
+    20: codeAwaitKey,
+}
+
+
+# Standard output functions.
+
+def cMove(d, n=1):
+    """Move cursor in a specified direction."""
+    d = curDirs[d]
+    code = "\u001b[{}{}".format(n, d)
+    stdout.write(code)
+
+
+def writeBody():
+    """Write the machinery's looks onto screen."""
+    stdout.write(" "*(80*25*10)+"\r\n")
+    stdout.write(bodyString.replace("\n", "\r\n"))
+    stdout.flush()
+
+
+# Calculator's little display functions.
+def flushScreen():
+    """Flush 25 positions from variable 'screen' onto our little display."""
+    global screen
+    cMove('d', 3)
+    cMove('r', 4)
+    stdout.write(''.join(screen[0:25]))
+    stdout.write("\r")
+    cMove('u', 3)
+    stdout.flush()
+
+def clearScreen():
+    """Clear the display."""
+    global screen
+    cMove('d', 3)
+    cMove('r', 4)
+    stdout.write(" "*25)
+    stdout.write("\r")
+    cMove('u', 3)
+    stdout.flush()
+
+# Standard input processing.
+def processInput():
+    """Register keypresses in another thread. See main()"""
+    global running, KEY
+
+    while running:
+        c = stdin.read(1)
+        if ord(c) == 3 or c == "q":
+            running = False
+        elif c in buttons:
+            KEY = c
+        elif ord(c) == 13:
+            KEY = "\n"
+        elif ord(c) == 127:
+            KEY = "d"
+        elif c == "c":
+            KEY = "c"
+    # Got outta the loop?
+    # Finish him! to be sure!
+    running = False
+
+# Calc display's messages and errors.
+def errorWrongOpcode():
+    global screen
+    screen = list("CPU CODE ERROR")
+    flushScreen()
+
+def errorExecutionFault():
+    global screen
+    screen = list("CPU CODE EXECUTION ERROR")
+    flushScreen()
+
+def errorRomNotFound():
+    global screen
+    screen = list("ROM NOT FOUND")
+    flushScreen()
+
+def errorRomOverloaded():
+    global screen
+    screen = list("ROM TOO LARGE OUT OF RAM")
+
+def messageIntro():
+    global screen
+    screen = list("NIGGER v0.3 KERNEL")
+    flushScreen()
+    time.sleep(1.4)
+    screen = []
+    clearScreen()
+
+# Main
+def main():
+    global screen, ip, RAM
+
+    # Show our machinery on-screen.
+    writeBody()
+    # Move cursor to beginning.
+    cMove('u', 19)
+
+    # Show intro message.
+    messageIntro()
+
+    # Start processing input.
+    thread.start_new_thread(processInput, ())
+
+    # Do we have ROM onboard?
+    if not os.path.isfile("./ROM.BIN"):
+        # Nah? GTFO then.
+        errorRomNotFound()
+    else:
+        # Read ROM!
+        f = open("./ROM.BIN", 'r')
+        data = f.read()
+        f.close()
+    
+        # Turn the data into list of opcodes (hopefully).
+        data = eval(data)
+        dataSize = len(data)
+        # 
+        if dataSize > 1024:
+            errorRomOverloaded
+        else:
+            # Load program and Fill RAM remaining space.
+            RAM = data  +  [0]*(1024-dataSize)
+            # Run processor.
+            process()
+
+    # In case of an error,
+    # when functions return not changing `running` state.
+    while running:
+        time.sleep(0.1)
+        # Now just press [q] or [Ctrl]+[c].
+    return
+
+def process():
+    """Process through RAM program."""
+    global ip
+    
+    ip = 0
+    while running:
+        # Get current opcode.
+        code = RAM[ip]
+        
+        if code in codes:
+            # Opcode exists.
+            # Execute.
+            try:
+                codes[code]()
+            except:
+                errorExecutionFault()
+                break
+        else:
+            # Doesn't exist.
+            # Throw an error.
+            errorWrongOpcode()
+            break
+        
+        # Next RAM cell.
+        ip += 1
+        # Limit proc's power, 'cos we ain't needing that.
+        time.sleep(0.02)
+
+
+# -- Code. --
+
+try:
+    # Save yo terminal's state, so it doesn't freak out.
+    ORIG_STATE = tty.tcgetattr(stdout)
+    # Go the easy way, only one func:
+    #  Put terminal's stdout in raw mode.
+    tty.setraw(stdout)
+
+    # Run program.
+    main()
+finally:
+    # Clean up!
+    tty.tcsetattr(stdout, tty.TCSANOW, ORIG_STATE)
+
+# Man remember, never cat any binaries.

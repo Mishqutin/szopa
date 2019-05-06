@@ -1,0 +1,105 @@
+
+l1s:
+mov #1000, 0;
+mov #1001, 0;
+mov #1002, 0;
+scrClr;
+
+l1:
+
+key #1000;
+
+cmp #1000, 0;
+je l2s;
+cmp #1000, 1;
+je l2s;
+cmp #1000, 2;
+je l2s;
+cmp #1000, 3;
+je l2s;
+cmp #1000, 4;
+je l2s;
+cmp #1000, 5;
+je l2s;
+cmp #1000, 6;
+je l2s;
+cmp #1000, 7;
+je l2s;
+cmp #1000, 8;
+je l2s;
+cmp #1000, 9;
+je l2s;
+
+jmp l1
+
+l2s:
+scrClr;
+print #1000;
+
+l2:
+key #1001;
+
+cmp #1001, 10;
+je l3s;
+cmp #1001, 11;
+je l3s;
+
+jmp l2;
+
+
+l3s:
+
+;
+
+l3:
+key #1002;
+
+cmp #1002, 0;
+je l4s;
+cmp #1002, 1;
+je l4s;
+cmp #1002, 2;
+je l4s;
+cmp #1002, 3;
+je l4s;
+cmp #1002, 4;
+je l4s;
+cmp #1002, 5;
+je l4s;
+cmp #1002, 6;
+je l4s;
+cmp #1002, 7;
+je l4s;
+cmp #1002, 8;
+je l4s;
+cmp #1002, 9;
+je l4s;
+
+jmp l3;
+
+l4s:
+
+cmp #1001, 10;
+je add;
+cmp #1001, 11;
+je sub;
+
+add:
+add #1000, #1002;
+jmp end;
+
+sub:
+sub #1000, #1002;
+jmp end;
+
+
+end:
+scrClr;
+print #1000;
+
+key #999;
+
+cmp #999, 20;
+je l1s;
+
+jmp end;

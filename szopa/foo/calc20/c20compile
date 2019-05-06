@@ -1,0 +1,170 @@
+#!/usr/bin/python3
+import os
+import sys
+
+# Shell arguments.
+if len(sys.argv)<2:
+    print("Please specify a file.")
+    sys.exit(1)
+elif not os.path.isfile(sys.argv[1]):
+    print("No such file.")
+    sys.exit(1)
+
+
+
+# List of available mnemonics and their opcodes.
+# E.g. 2 processor's opcodes are binded to 'mov' - 4, 5 -
+# move RAM <- number and move RAM <- RAM.
+# Compiler needs to know which one to use, so:
+# If you write 'mov #100, 1' you move 1 into the RAM,
+# so it uses opcode 4.
+# If you write 'mov #100, #200' you move value from RAM on position
+# 200 into position 100, so it uses opcode 5.
+#
+# Compiler calculates it by counting hashes (#).
+# 0 hashes = 0, 1 # = 1, 2 # = 2.
+# And it grabs corresponding value from here.
+# Value -1 means to throw an error, beacause the processor doesn't
+# have such function, e.g. mov 2, 3 (which mean 2 == 3).
+CODES = {
+    "halt":   (0, ),
+    "print":  (1, 6),
+    "scrClr": (2, ),
+    "sleep":  (3, -1),
+    "mov":    (-1, 4, 5),
+
+    "add":    (-1, 7, 8),
+    "sub":    (-1, 9, 10),
+    "mul":    (-1, 11, 12),
+    "div":    (-1, 13, 14),
+
+    "jmp":    (15, -1),
+
+    "cmp":    (-1, 16, 17),
+    "je":     (18, -1),
+    "jne":    (19, -1),
+
+    "key":    (-1, 20)
+}
+
+# Here's the number of accepted arguments per function.
+# e.g. halt has 0: 'halt', print has 1: 'print <arg>'
+CODE_PARAMS = {
+    "halt":   0,
+    "print":  1,
+    "scrClr": 0,
+    "sleep":  1,
+    "mov":    2,
+
+    "add":    2,
+    "sub":    2,
+    "mul":    2,
+    "div":    2,
+
+    "jmp":    1,
+
+    "cmp":    2,
+    "je":     1,
+    "jne":    1,
+
+    "key":    1,
+}
+
+# Functions.
+def throwParseError(i, ins, msg):
+    """Show user point at which the compilation stopped,
+     tell him about the problem and stop the process."""
+    a = i-3 if i-3>=0 else 0
+    b = i+3 if i+3<len(ins) else i+1
+    print(ins[a:b])
+    print("Error while parsing at", i)
+    print(" "+str(msg))
+    sys.exit(2)
+
+# Array containing ready processor's code.
+data = []
+
+# Read code file.
+print("Read file...")
+path = sys.argv[1]
+f = open(path, 'r')
+src = f.read()
+f.close()
+
+# ';' are ommitted, '\n', ',' are replaced by spaces.
+
+print("Formatting code...")
+src = src.replace(";", "") # Because I like adding 'em everywhere :)
+
+src = src.replace("\n", " ")
+#src = src.replace(", ", " ")
+src = src.replace(",",  " ")
+
+# Strip whtespace and combine code into an array.
+ins = src.split()
+
+# Find labels.
+print("Processing labels...")
+labels = {}
+i = 0
+for s in ins:
+    if s[-1] == ":":
+        labels[s[:-1]] = i
+    else:
+        i += 1
+
+# Main compilation process.
+print("Compiling...")
+i = 0
+while True:
+    # If reached end of commands.
+    if i >= len(ins): break
+    # code = current mnemonic.
+    code = ins[i]
+
+    # If found a label: ignore.
+    if code[-1] == ":":
+        i += 1
+        continue
+
+    # Non-existent code - throw an error.
+    if not code in CODES:
+        throwParseError(i, ins, "unknown opcode: "+repr(code))
+
+    
+    d = [0]
+    mod = 0
+    n = CODES[code]
+    nparam = CODE_PARAMS[code]
+
+    # Evaluate parameters.
+    for num in range(nparam):
+        i += 1
+        s = ins[i] # s = parameter.
+        
+        # Is s a pointer?
+        if s[0] == "#":
+            mod += 1
+            s = s[1:]
+        # Is s a label? Replace it with it's cell number.
+        if s in labels: s = labels[s]
+        
+        d.append(int(s))
+
+    d[0] = n[mod]
+
+    # A command had a hash (#) in invalid place/unsupported by that command.
+    if d[0] == -1:
+        throwParseError(i, ins, "invalid syntax for command's parameters: "+code)
+    
+    data += d
+    
+    i += 1
+
+# Write compiled code.
+print("Writing ROM.BIN...")
+f = open("ROM.BIN", 'w')
+f.write(str(data))
+f.close()
+
+print("Done.")
